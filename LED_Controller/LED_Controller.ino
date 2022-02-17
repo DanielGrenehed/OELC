@@ -1,3 +1,4 @@
+#include <SoftwareSerial.h>
 
 int RedDiodePin = 11;
 int GreenDiodePin = 10;
@@ -5,6 +6,7 @@ int BlueDiodePin = 9;
 int Key1Pin = 8;
 int Key2Pin = 12;
 int PotPin = A0;
+SoftwareSerial CtrlSerial(5, 6);
 
 int Key1State = LOW;
 int Key2State = LOW;
@@ -38,7 +40,7 @@ void onKey1Press() {
 }
 
 void onKey1High() {
-  if (mode == 1) {
+  if (mode == 1 || mode == 3) {
     RGBB_Data[3] = getPotValue(); // set Brightness
   }
 }
@@ -80,9 +82,10 @@ void modeValueControl() {
 }
 
 void modeUART() {
-  if (Serial.avaliable()) {
+ 
+  if (CtrlSerial.available()) {
     byte buffer[2];
-    Serial.readBytes(buffer, 2);
+    CtrlSerial.readBytes(buffer, 2);
     switch (buffer[0]) {
       case 'R':
       RGBB_Data[0] = (int)buffer[1];
@@ -93,6 +96,7 @@ void modeUART() {
       case 'B':
       RGBB_Data[2] = (int)buffer[1];
     } 
+    Serial.write(buffer, 2);
   }
 }  
 
@@ -128,6 +132,7 @@ void setup() {
   pinMode(GreenDiodePin, OUTPUT);
   pinMode(BlueDiodePin, OUTPUT);
   Serial.begin(9600);
+  CtrlSerial.begin(9600);
 }
 
 void loop() {
