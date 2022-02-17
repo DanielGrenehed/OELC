@@ -12,4 +12,7 @@ In state 4 it is listeng to UART and setting the LED color based on the data it 
 
 The Leonardo is subscribed to the LED R G and B channel on the MQTT server and sends the corresponding color over UART when received.
 
-The Raspberry Pi is continually trying to read rifd-cards, if a card is red a color is published to the MQTT based on if the card is whitelisted(Green), Blacklisted(Red) or unlisted(Blue)
+The Raspberry Pi is continually trying to read rifd-cards, if a card is red a color is published to the MQTT based on if the card is whitelisted(Green), Blacklisted(Red) or unlisted(Blue).
+
+## Raspberry pi
+[mqtt setup](https://pimylifeup.com/raspberry-pi-mosquitto-mqtt-server/)
