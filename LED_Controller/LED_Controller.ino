@@ -36,11 +36,21 @@ void nextLED() {
 void onKey1Press() {
   if (mode == 0 || mode == 2) {
     nextLED();
+  } else if (mode == 3) {
+    byte out[] = {'1'};
+    CtrlSerial.write(out, 1);
+  }
+}
+
+void onKey1Release() {
+  if (mode == 3) {
+    byte out[] = {'0'};
+    CtrlSerial.write(out, 1);
   }
 }
 
 void onKey1High() {
-  if (mode == 1 || mode == 3) {
+  if (mode == 1) {
     RGBB_Data[3] = getPotValue(); // set Brightness
   }
 }
@@ -98,6 +108,7 @@ void modeUART() {
     } 
     Serial.write(buffer, 2);
   }
+  RGBB_Data[3] = getPotValue();
 }  
 
 void operateMode() {
@@ -144,6 +155,8 @@ void loop() {
   if (tmp != Key1State) {
     if (tmp == HIGH) {
       onKey1Press();
+    } else {
+      onKey1Release(); 
     }
     Key1State = tmp;
   }

@@ -6,6 +6,7 @@
 
 byte MAC_ADDRESS[] = {  0x90, 0xA2, 0xDA, 0x0E, 0x94, 0x93 };
 byte MQTT_SERVER[] = { 192, 168, 1, 105};
+unsigned int PORT = 1883;
 
 EthernetClient ethClient;
 PubSubClient mqtt_client(ethClient); 
@@ -58,20 +59,27 @@ void reconnect() {
     }
 } 
 
+void readSerial() {
+  if (SerialOut.available()) {
+    byte in[1];
+    SerialOut.readBytes(in, 1);
+    mqtt_client.publish("arduino/uno/key1", in);
+  }
+}
+
 void setup() {   
   Serial.begin(9600);
   if (Ethernet.begin(MAC_ADDRESS) == 0) Serial.println("Ethernet failed!"); 
   else Serial.println("Ethernet connected!");
   
-  mqtt_client.setServer(MQTT_SERVER, 1883);
+  mqtt_client.setServer(MQTT_SERVER, PORT);
   mqtt_client.setCallback(onMQTTMessage);
   SerialOut.begin(9600);
   delay(1000);
 }
 
 void loop() {
-  //Retry until connected is true
   if (!mqtt_client.connected()) reconnect();
-  // MQTT client loop processing
   mqtt_client.loop();
+  readSerial();
 }
