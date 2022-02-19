@@ -1,27 +1,36 @@
 #include <SoftwareSerial.h>
 
 #define BAUD_RATE 9600
+#define SOFTWARE_SERIAL_RX 5
+#define SOFTWARE_SERIAL_TX 6
+
+#define RED RGBB_Data[0]
+#define GREEN RGBB_Data[1]
+#define BLUE RGBB_Data[2]
+#define STATE states[current_state]
+#define SEL_COLOR RGBB_Data[ledselected]
+ 
 #define KEY_1_INTERRUPT_PIN 2
 #define KEY_2_INTERRUPT_PIN 3
-byte Key1Pin = 8;
-byte Key2Pin = 12;
+const byte Key1Pin = 8;
+const byte Key2Pin = 12;
 
-byte PotPin = A0;
+const byte PotPin = A0;
 
-byte RedDiodePin = 11;
-byte GreenDiodePin = 10;
-byte BlueDiodePin = 9;
+const byte RedDiodePin = 11;
+const byte GreenDiodePin = 10;
+const byte BlueDiodePin = 9;
 
+// 
 int Key1State = LOW;
 int Key2State = LOW;
 byte PotValue = 0;
 
+// State parameters
 byte ledselected = 0;
-
-
 byte param_1 = 0;
 byte param_2 = 255;
-bool positive_count = true;
+
 
 int RGBB_Data[]= {255, 0, 0, 255}; // RED, GREEN, BLUE, BRIGHTNESS
 long last_update_time = 0;
@@ -29,23 +38,27 @@ long last_update_time = 0;
 void setBrightness(byte brightness) {
   RGBB_Data[3] = brightness;
 }
+
+/*
+  Clear color values
+*/
 void clearRGB() {
-  RGBB_Data[0] = 0;
-  RGBB_Data[1] = 0;
-  RGBB_Data[2] = 0;
+  RED = 0; // clear red
+  GREEN = 0; // clear green
+  BLUE = 0; // clear blue
 }
 
-SoftwareSerial CtrlSerial(5, 6);
-
-void nextLED() {
+/*
+  Change color selection
+*/
+void nextLED() { 
   ledselected++;
   if (ledselected > 2) ledselected = 0;
- 
- /*  if (mode == 0) {
-    clearRGB();
-    RGBB_Data[ledselected] = 255;
-  } */
 }
+
+//
+// Abstract state base class
+//
 
 class State {
 public:
@@ -54,6 +67,10 @@ public:
   virtual void onStart() = 0;
   virtual void update() = 0;
 };
+
+//
+// RGB state
+//
 
 class RGB_State: public State {
 public:
@@ -68,16 +85,20 @@ public:
 void RGB_State::onKeyPressed() {
   nextLED();
   clearRGB();
-  RGBB_Data[ledselected] = 255;
+  SEL_COLOR = 255;
 }
 void RGB_State::onKeyReleased() {}
 void RGB_State::onStart() {
   clearRGB();
-  RGBB_Data[ledselected] = 255;
+  SEL_COLOR = 255;
 }
 void RGB_State::update() {
   setBrightness(param_1);
 }
+
+//
+// Rainbow state
+//
 
 class Rainbow_State: public State {
 private:
@@ -104,21 +125,25 @@ void Rainbow_State::update() {
   }
   
   if (this->positive_count) {
-    RGBB_Data[ledselected] += delta_change;
-    if (RGBB_Data[ledselected] >= 255) { 
-      RGBB_Data[ledselected] = 255;
+   SEL_COLOR += delta_change;
+    if (SEL_COLOR >= 255) { 
+      SEL_COLOR = 255;
       nextLED();
       this->positive_count = false;
     }
   } else {
-    RGBB_Data[ledselected] -= delta_change;
-    if (RGBB_Data[ledselected] <= 0) {
-      RGBB_Data[ledselected] = 0;
+    SEL_COLOR -= delta_change;
+    if (SEL_COLOR <= 0) {
+      SEL_COLOR = 0;
       nextLED();
       this->positive_count = true;
     }   
   }
 }
+
+//
+// ValueControl state
+//
 
 class ValueControl_State: public State {
 public:
@@ -138,12 +163,18 @@ void ValueControl_State::onStart() {
   setBrightness(255);
 }
 void ValueControl_State::update() {
-  RGBB_Data[ledselected] = param_1;
+  SEL_COLOR = param_1;
 }
 
+//
+// UART state
+//
+
 class UART_State: public State {
+private:
+  SoftwareSerial* UART;
 public:
-  UART_State() {};
+  UART_State();
   ~UART_State() {};
   virtual void onKeyPressed();
   virtual void onKeyReleased();
@@ -151,24 +182,38 @@ public:
   virtual void update();
 };
 
-void UART_State::onKeyPressed() {}
-void UART_State::onKeyReleased() {}
+UART_State::UART_State() {
+  this->UART = new SoftwareSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
+  this->UART->begin(BAUD_RATE);
+}
+
+void UART_State::onKeyPressed() {
+  byte out[] = {'1'};
+  this->UART->write(out, 1);
+}
+
+void UART_State::onKeyReleased() {
+  byte out[] = {'0'};
+  this->UART->write(out, 1);
+}
+
 void UART_State::onStart() {
   clearRGB();
 }
+
 void UART_State::update() {
-  if (CtrlSerial.available()) {
+  if (this->UART->available()) {
     byte buffer[2];
-    CtrlSerial.readBytes(buffer, 2);
+    this->UART->readBytes(buffer, 2);
     switch (buffer[0]) {
       case 'R':
-      RGBB_Data[0] = (int)buffer[1];
+      RED = (int)buffer[1];
       break;
       case 'G':
-      RGBB_Data[1] = (int)buffer[1];
+      GREEN = (int)buffer[1];
       break;
       case 'B':
-      RGBB_Data[2] = (int)buffer[1];
+      BLUE = (int)buffer[1];
       break;
     } 
     Serial.write(buffer, 2);
@@ -176,27 +221,27 @@ void UART_State::update() {
   setBrightness(param_1);
 }
 
-byte mode = 0;
+// State machine variables
+byte current_state = 0;
 State* states[] = {new RGB_State(), new Rainbow_State(), new ValueControl_State(), new UART_State()}; 
 
-
-
-
+/*
+  Returns the final brightnes of led calculated by general brightness and the value of the LED color.
+*/
 byte calculateBrightness(int value) {
   return (value*RGBB_Data[3]) / 255;
 }
 
-
-
+/*
+  Set the color of the LED.
+*/
 void writeRGBtoLED() {
-  analogWrite(RedDiodePin, 255-calculateBrightness(RGBB_Data[0]));
-  analogWrite(GreenDiodePin, 255-calculateBrightness(RGBB_Data[1])); 
-  analogWrite(BlueDiodePin, 255-calculateBrightness(RGBB_Data[2]));
+  analogWrite(RedDiodePin, 255-calculateBrightness(RED));
+  analogWrite(GreenDiodePin, 255-calculateBrightness(GREEN)); 
+  analogWrite(BlueDiodePin, 255-calculateBrightness(BLUE));
 }
 
-
-
-//
+// 
 // Input handling
 //
 
@@ -204,10 +249,9 @@ void Key1Handle() {
   int tmp = digitalRead(Key1Pin);
   if (tmp != Key1State) {
     if (tmp == HIGH) {
-      onKey1Press();
-      Serial.println("Key1 pressed");
+      STATE->onKeyPressed();
     } else {
-      onKey1Release(); 
+      STATE->onKeyReleased(); 
     }
     Key1State = tmp;
   }
@@ -218,34 +262,14 @@ void Key2Handle() {
   if (tmp != Key2State) {
     if (tmp == HIGH) {
       onKey2Press();
-      Serial.println("Key2 pressed");
     }
     Key2State = tmp;
   } 
 }
 
-void onKey1Press() {
-  //modes[mode].buttonPressed();
-  states[mode]->onKeyPressed();
-  /* if (mode == 0 || mode == 2) {
-    nextLED();
-  } else if (mode == 3) {
-    byte out[] = {'1'};
-    CtrlSerial.write(out, 1);
-  } */
-}
-
-void onKey1Release() {
-  //modes[mode].buttonReleased();
-  states[mode]->onKeyReleased();
- /* if (mode == 3) {
-    byte out[] = {'0'};
-    CtrlSerial.write(out, 1);
-  } */
-}
-
 void onKey2Press() {
-  nextMode();
+  nextState();
+  Serial.println("State changed, state: " + String(current_state)); 
 }
 
 void onPotValueChanged(byte new_value) {
@@ -253,133 +277,12 @@ void onPotValueChanged(byte new_value) {
   param_1 = new_value;
 }
 
-//
-// RGB mode
-//
-
-void onModeRGBSet() {
-    clearRGB();
-    RGBB_Data[ledselected] = 255;
-}
-
-void modeRGB() {
-  setBrightness(param_1);
-}
-
-//
-// Rainbow mode
-//
-
-void onModeRainbowSet() {}
-
-void modeRainbow() {
-  setBrightness(param_2);
-  float delta_change = ((float)param_1 / 255) * (millis() - last_update_time);
-  if (delta_change < 1.0) {
-    return;
-  } else {
-    last_update_time = millis();  
+void nextState() {
+  current_state++;
+  if (current_state > 3) {
+    current_state = 0;
   }
-  
-  if (positive_count) {
-    RGBB_Data[ledselected] += delta_change;
-    if (RGBB_Data[ledselected] >= 255) { 
-      RGBB_Data[ledselected] = 255;
-      nextLED();
-      positive_count = false;
-    }
-  } else {
-    RGBB_Data[ledselected] -= delta_change;
-    if (RGBB_Data[ledselected] <= 0) {
-      RGBB_Data[ledselected] = 0;
-      nextLED();
-      positive_count = true;
-    }   
-  }
-}
-
-//
-// Value control mode
-//
-
-void onModeValueControlSet() {
-  setBrightness(255);
-}
-
-void modeValueControl() {
-  RGBB_Data[ledselected] = param_1;
-}
-
-
-//
-// UART control mode
-//
-
-void onModeUARTSet() {
-  clearRGB();
-}
-
-void modeUART() {
-  if (CtrlSerial.available()) {
-    byte buffer[2];
-    CtrlSerial.readBytes(buffer, 2);
-    switch (buffer[0]) {
-      case 'R':
-      RGBB_Data[0] = (int)buffer[1];
-      break;
-      case 'G':
-      RGBB_Data[1] = (int)buffer[1];
-      break;
-      case 'B':
-      RGBB_Data[2] = (int)buffer[1];
-      break;
-    } 
-    Serial.write(buffer, 2);
-  }
-  setBrightness(param_1);
-}  
-
-//
-// Handle state(modes)
-//
-
-void operateMode() {
-  switch (mode) {
-    case 0:
-    modeRGB();
-    break;
-    case 1:
-    modeRainbow();
-    break;
-    case 2:
-    modeValueControl();
-    break;  
-    case 3:
-    modeUART();
-    break;
-  }
-}
-
-void nextMode() {
-  mode++;
-  if (mode > 3) {
-    mode = 0;
-  }
-  states[mode]->onStart();
-  /* switch (mode) {
-    case 0:
-    onModeRGBSet();
-    break;
-    case 1:
-    onModeRainbowSet();
-    break;
-    case 2:
-    onModeValueControlSet();
-    break;
-    case 3:
-    onModeUARTSet();
-    break;
-  }  */
+  STATE->onStart();
 }
 
 //
@@ -391,9 +294,6 @@ void handleSerial() {
     
   }
 }
-
-
-
 
 //
 // Arduino setup and loop
@@ -417,13 +317,11 @@ void setup() {
   
   // start comms
   Serial.begin(BAUD_RATE);
-  CtrlSerial.begin(BAUD_RATE);
 }
 
 void loop() {
   
-  states[mode]->update();
-  //operateMode();
+  STATE->update();
   writeRGBtoLED();
   handleSerial();
   
