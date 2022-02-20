@@ -40,6 +40,25 @@ void setBrightness(byte brightness) {
   RGBB_Data[3] = brightness;
 }
 
+int getStringStart(const char* string, int str_len) {
+  for (int i = 0; i < str_len; i++) {
+    if (string[i] == ' ' || string[i] == '\t');
+    else return i;
+  }
+  return -1;
+}
+
+int startsWith(const char* string, int str_len, const char* substring) {
+  int string_start = getStringStart(string, str_len);
+  int sub_len = strlen(substring);
+  int i = 0;
+  for (; i < sub_len; i++) {
+    if (string_start+i >= str_len) return -1;
+    if (substring[i] != string[string_start+i]) return -1;
+  }
+  return i;
+} 
+
 /*
   Clear color values
 */
@@ -220,16 +239,13 @@ public:
 
 void RGB_State::onKeyPressed() {
   nextLED();
-  clearRGB();
-  SEL_COLOR = 255;
 }
 void RGB_State::onKeyReleased() {}
-void RGB_State::onStart() {
-  clearRGB();
-  SEL_COLOR = 255;
-}
+void RGB_State::onStart() {}
 void RGB_State::update() {
   setBrightness(param_1);
+  clearRGB();
+  SEL_COLOR = 255;
 }
 void RGB_State::printInfo() {
   Serial.println("\tRGB ");
@@ -469,23 +485,61 @@ void handleSerial() {
   }
 }
 
+void currentState(char* input, int len) {
+  Serial.println("State " + String(current_state) + ":");
+  STATE->printInfo();
+  Serial.println("\tParam_1: " + String(param_1));
+  Serial.println("\tParam_2: " + String(param_2));
+  Serial.println("\tSelected_LED: " + String(selectedLED));
+}
+
+void currentColor(char* input, int len) {
+  Serial.println("Color:");
+  Serial.println("\tRed: " + String(RED));
+  Serial.println("\tGreen: " + String(GREEN));
+  Serial.println("\tBlue: " + String(BLUE));
+  Serial.println("\tBrightness: " + String(RGBB_Data[3]));
+}
+
+void toNextState(char* input, int len) {
+  nextState();
+}
+
+void toNextLED(char* input, int len) {
+  nextLED();
+  Serial.println("Current led: " + String(selectedLED));
+}
+
+void printHelp(char* input, int len) {
+  Serial.println("Functions: ");
+  Serial.println("\tcs - Print current state info");
+  Serial.println("\tcc - Print current color values");
+  Serial.println("\tns - Switch to next state");
+  Serial.println("\tnl - Switch LED selection");
+  Serial.println("\thelp - Print this help message");
+}
+
+struct FunctionLink {
+  char* name;
+  void (*function)(char* input, int len);
+};
+
+#define MAPPED_FUNCTIONS 5
+FunctionLink FunctionMap[] = {
+  {"cs", currentState}, 
+  {"cc", currentColor},
+  {"ns", toNextState},
+  {"nl", toNextLED},
+  {"help", printHelp}
+};
+
 void processCommands(char* input, int len) {
-  if (input[0] == 'c' && input[1] == 's') {
-    Serial.println("State " + String(current_state) + ":");
-    STATE->printInfo();
-    Serial.println("\tParam_1: " + String(param_1));
-    Serial.println("\tParam_2: " + String(param_2));
-    Serial.println("\tSelected_LED: " + String(selectedLED));
-  }
-  if (input[0] == 'c' && input[1] == 'c') {
-    Serial.println("Color:");
-    Serial.println("\tRed: " + String(RED));
-    Serial.println("\tGreen: " + String(GREEN));
-    Serial.println("\tBlue: " + String(BLUE));
-    Serial.println("\tBrightness: " + String(RGBB_Data[3]));
-  }
-  if (input[0] == 'n' && input[1] == 's') {
-    nextState();
+  for (int i = 0; i < MAPPED_FUNCTIONS; i++) {
+    int start = startsWith(input, len, FunctionMap[i].name);
+    if (start >= 0) {
+      FunctionMap[i].function(input+start, len-start);
+      break;
+    }
   }
 }
 
