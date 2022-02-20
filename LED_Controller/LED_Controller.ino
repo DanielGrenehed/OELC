@@ -44,9 +44,9 @@ void setBrightness(byte brightness) {
   Clear color values
 */
 void clearRGB() {
-  RED = 0; // clear red
-  GREEN = 0; // clear green
-  BLUE = 0; // clear blue
+  RED = 0; 
+  GREEN = 0;
+  BLUE = 0;
 }
 
 /*
@@ -57,11 +57,6 @@ void nextLED() {
   if (selectedLED > 2) selectedLED = 0;
 }
 
-void printEnabledOrDisabled(bool enabled) {
-  Serial.print("\tMode: ");
-  Serial.println(enabled ? "Enabled" : "Disabled");
-}
-
 struct Task {
   long duration;
   uint8_t state;
@@ -69,7 +64,6 @@ struct Task {
   uint8_t param_2;
   uint8_t selection;
 };
-
 
 #define MAX_TASKS 30
 class Scheduler {
@@ -79,20 +73,23 @@ private:
   int current_task = 0; 
   long task_start_time = 0; // Time measured when task started
   bool running = false;
+  void startTask();
+  void nextTask();
 public:
-  Scheduler();
+  Scheduler() {};
+  ~Scheduler() {};
   void printSchedule();
   void printStatus();
+  void printIndexError(int index);
   void addTask(Task task);
-  void removeTask(int at);
-  void moveTask(int at, int to);
-  void updateTask(int at, Task task);
+  void removeTask(int index);
+  void moveTask(int index, int to);
+  void updateTask(int index, Task task);
   void start();
   void stop();
   bool isRunning();
+  void run();
 };
-
-Scheduler::Scheduler() {}
 
 void Scheduler::printSchedule() {
   // print order of tasks in schedule
@@ -103,16 +100,54 @@ void Scheduler::printSchedule() {
 }
 void Scheduler::printStatus() {
   // print status of scheduler and current task
+  Serial.println("Scheduler:");
   Serial.print("\tRunning: ");
   Serial.println(this->running ? "true" : "false");
+  Serial.println("\t" + String(task_count) + " tasks");
+  if (task_count > 0) {
+    Serial.println("\tTask: " + String(current_task));
+    Serial.println("\tFor: " + String(millis() - task_start_time) + "ms");
+    Serial.println("\tState_" + String(this->tasks[current_task].state) + " for " + String(this->tasks[current_task].duration) + "ms, p1: " + String(this->tasks[current_task].param_1) + ", p2: " + String(this->tasks[current_task].param_2) + ", s: " + String(this->tasks[current_task].selection));
+  }
 }
 
-void Scheduler::addTask(Task task) {}
-void Scheduler::removeTask(int at) {}
-void Scheduler::moveTask(int from, int to) {}
-void Scheduler::updateTask(int at, Task task) {}
+void Scheduler::printIndexError(int index) {
+  if (index >= task_count) Serial.println("Index out of range: " + String(index) + ", Task-count: " + String(task_count));
+  if (index < 0) Serial.println("Illegal use of negative index: " + String(index));
+}
+
+void Scheduler::addTask(Task task) {
+  if (this->task_count+1 < MAX_TASKS) {
+    this->tasks[this->task_count++] = task;
+  } else {
+    Serial.println("Failed to add task, task limit reached!");
+  }
+}
+void Scheduler::removeTask(int index) {
+  if (index < task_count && index >= 0) {
+    for (int i = index; i < task_count; i++) {
+      tasks[i] = tasks[i+1];
+    } 
+    task_count--;
+  } else printIndexError(index);
+}
+void Scheduler::moveTask(int from, int to) {
+  if (from < task_count && from >= 0 && to < task_count && to >= 0) {
+    Task temp = tasks[to];
+    tasks[to] = tasks[from];
+    tasks[from] = temp;
+  } else {
+    printIndexError(from);
+    printIndexError(to);
+  }
+}
+void Scheduler::updateTask(int index, Task task) {
+  if (index < task_count && index >= 0) tasks[index] = task;
+  else printIndexError(index);
+}
 void Scheduler::start() {
-  this->running = true;
+  if (task_count > 0) this->running = true;
+  else Serial.println("Scheduler cannot start without tasks!");
 }
 void Scheduler::stop() {
   this->running = false;
@@ -120,6 +155,27 @@ void Scheduler::stop() {
 bool Scheduler::isRunning() {
   return this->running;
 }
+
+void Scheduler::run() {
+  if (!isRunning()) return;
+  if (task_start_time == 0) startTask();
+  if (millis() - task_start_time >= tasks[current_task].duration) nextTask();
+}
+void setState(byte new_state);
+void Scheduler::startTask() {
+  setState(tasks[current_task].state);
+  param_1 = tasks[current_task].param_1;
+  param_2 = tasks[current_task].param_2;
+  selectedLED = tasks[current_task].selection;
+  task_start_time = millis();
+}
+void Scheduler::nextTask() {
+  current_task++; 
+  if (current_task >= task_count) current_task = 0;
+  startTask();
+}
+
+Scheduler* scheduler;  
 
 //
 // Abstract state base class
@@ -138,7 +194,13 @@ public:
   bool isEnabled() { return this->enabled; };
   void enable() { this->enabled = true; };
   void disable() { this->enabled = false; };
+  void printMode();
 };
+
+void State::printMode() {
+  Serial.print("\tMode: ");
+  Serial.println(enabled ? "Enabled" : "Disabled");
+}
 
 //
 // RGB state
@@ -171,7 +233,7 @@ void RGB_State::update() {
 }
 void RGB_State::printInfo() {
   Serial.println("\tRGB ");
-  printEnabledOrDisabled(this->isEnabled());
+  printMode();
 
 }
 
@@ -222,7 +284,7 @@ void Rainbow_State::update() {
 }
 void Rainbow_State::printInfo() {
   Serial.println("\tRainbow ");
-  printEnabledOrDisabled(this->isEnabled());
+  printMode();
 }
 
 //
@@ -252,7 +314,7 @@ void ValueControl_State::update() {
 }
 void ValueControl_State::printInfo() {
   Serial.println("\tValue Control ");
-  printEnabledOrDisabled(this->isEnabled());
+  printMode();
 }
 
 //
@@ -313,7 +375,7 @@ void UART_State::update() {
 
 void UART_State::printInfo() {
   Serial.println("\tUART ");
-  printEnabledOrDisabled(this->isEnabled());
+  printMode();
   
 }
 
@@ -321,6 +383,23 @@ void UART_State::printInfo() {
 
 const byte Num_States = 4; 
 State* states[] = {new RGB_State(), new Rainbow_State(), new ValueControl_State(), new UART_State()}; 
+
+void setState(byte new_state) {
+  current_state = new_state;
+  STATE->onStart();  
+  Serial.println("State changed, state: " + String(current_state));
+}
+
+void nextState() { // Making sure to go to next enabled state, and to not get stuck in a loop
+  for (int i = 0; i < Num_States; i++) { 
+    int potential = (current_state + i+1) % Num_States;
+    if (states[potential]->isEnabled()) {
+      setState(potential);
+      return;
+    }
+    else Serial.println("Potential failed (" + String(potential) + ")");
+  }
+}
 
 /*
   Returns the final brightnes of led calculated by general brightness and the value of the LED color.
@@ -360,7 +439,7 @@ void Key2Handle() {
 }
 
 void onKey2Press() {
-  nextState(); 
+  if (!scheduler->isRunning()) nextState(); 
 }
 
 void PotHandle() {
@@ -374,28 +453,6 @@ void PotHandle() {
 void onPotValueChanged(byte new_value) {
   if (Key1State == HIGH) param_2 = new_value;
   param_1 = new_value;
-}
-
-bool setState(byte new_state) {
-  if (new_state < Num_States) {
-    if (states[new_state]->isEnabled()) {
-      current_state = new_state;
-      STATE->onStart();  
-      return true;
-    }
-  }
-  return false;
-}
-
-void nextState() { // Making sure to go to next enabled state, and to not get stuck in a loop
-  for (int i = 0; i < Num_States; i++) { 
-    int potential = (current_state + i+1) % Num_States;
-    if (setState(potential)) {
-      Serial.println("State changed, state: " + String(current_state));
-      return;
-    }
-    Serial.println("Potential failed (" + String(potential) + ")");
-  }
 }
 
 //
@@ -432,7 +489,6 @@ void processCommands(char* input, int len) {
   }
 }
 
-Scheduler scheduler();
 //
 // Arduino setup and loop
 //
@@ -454,10 +510,13 @@ void setup() {
   
   // start comms
   Serial.begin(BAUD_RATE);
+
+  scheduler = new Scheduler();
 }
 
 void loop() {
   // handle scheduler
+  scheduler->run();
 
   PotHandle();
   STATE->update();
