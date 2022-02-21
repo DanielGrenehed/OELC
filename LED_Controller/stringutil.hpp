@@ -30,3 +30,14 @@ int endOfNumber(const char *string, int str_len) {
   for (int i = start; i < str_len; i++) if (string[i] < 48 || string[i] > 57) return i;
   return -1;
 }
+
+long getNumericArgument(char * input, int len) {
+  int ns = endOfNumber(input, len);
+  int start = getStringStart(input, len);
+  if (ns-start <= 0) {
+    Serial.println("No value set");
+    return -1;
+  } 
+  input[ns] = 0;
+  return atol(input+start);
+}

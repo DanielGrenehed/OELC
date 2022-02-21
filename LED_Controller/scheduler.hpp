@@ -14,6 +14,7 @@ private:
   int current_task = 0;
   long task_start_time = 0; // Time measured when task started
   bool running = false;
+  bool loop = true;
   void (*changeToState)(byte state);
   void (*setParameters)(byte p1, byte p2, byte s);
   void startTask();
@@ -30,7 +31,10 @@ public:
   void updateTask(int index, Task task);
   void start();
   void stop();
+  void enableLoop();
+  void disableLoop();
   bool isRunning();
+  bool isLooping();
   void run();
 };
 
@@ -127,6 +131,14 @@ void Scheduler::stop() {
   this->running = false;
 }
 
+void Scheduler::enableLoop() {
+    this->loop = true;
+}
+
+void Scheduler::disableLoop() {
+    this->loop = false;
+}
+
 /*
   Returns wether or not the schedule is running
 */
@@ -134,6 +146,9 @@ bool Scheduler::isRunning() {
   return this->running;
 }
 
+bool Scheduler::isLooping() {
+    return this->loop;
+}
 /*
   Do all scheduler handling
 */
@@ -158,7 +173,10 @@ void Scheduler::startTask() {
 */
 void Scheduler::nextTask() {
   current_task++;
-  if (current_task >= task_count) current_task = 0;
+  if (current_task >= task_count) {
+      current_task = 0;
+      if (!isLooping()) stop();
+  }
   setParameters(tasks[current_task].param_1, tasks[current_task].param_2, tasks[current_task].selection);
   startTask();
   task_start_time = millis();
