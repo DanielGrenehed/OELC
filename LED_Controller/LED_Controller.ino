@@ -192,7 +192,7 @@ void schedulerCommand(char* input, int len) {
    for (int i = 0; i < SCHEDULER_FUNCTIONS; i++) {
     int start = startsWith(input, len, SchedulerMap[i].name);
     if (start >= 0) {
-      Serial.println(input+start);
+      //Serial.println(input+start);
       SchedulerMap[i].function(input + start, len - start);
       return;
     }
