@@ -4,6 +4,11 @@
 #define SOFTWARE_SERIAL_RX 5
 #define SOFTWARE_SERIAL_TX 6
 
+void printlnBool(bool);
+void printArgumentError();
+void setState(byte);
+void nextState();
+
 byte selectedLED = 0;
 byte param_1 = 0;
 byte param_2 = 255;
@@ -36,7 +41,7 @@ void setSelectedColor(byte intensity) {
 
 void setSelected(byte led) {
   if (led >= 0 && led < 3) selectedLED = led;
-  else Serial.println("Invalid LED selection!");
+  else Serial.println("LEDErr!");
 }
 
 void nextLED() {
@@ -53,8 +58,10 @@ private:
   bool enabled = true;
 
 public:
-  virtual void onKeyPressed() {}; // Key1 pressed event
-  virtual void onKeyReleased() {}; // Key1 released event
+  virtual void onKey1Pressed() {}; // Key1 pressed event
+  virtual void onKey1Released() {}; // Key1 released event
+  virtual void onKey2Pressed() {};
+  virtual void onKey2Released() {};
   virtual void onStart() {}; // called when state is set
   virtual void update() {}; // called every loop iteration for the current state 
   virtual void printInfo() = 0; // prints state info
@@ -70,7 +77,7 @@ public:
 */
 void State::printMode() {
   Serial.print("\tMode: ");
-  Serial.println(enabled ? "Enabled" : "Disabled");
+  printlnBool(enabled);
 }
 
 //
@@ -81,13 +88,17 @@ class RGB_State : public State {
 public:
   RGB_State(){};
   ~RGB_State(){};
-  virtual void onKeyPressed();
+  virtual void onKey1Pressed();
+  virtual void onKey2Pressed();
   virtual void update();
   virtual void printInfo();
 };
 
-void RGB_State::onKeyPressed() {
+void RGB_State::onKey1Pressed() {
   nextLED();
+}
+void RGB_State::onKey2Pressed() {
+    nextState();
 }
 void RGB_State::update() {
   setBrightness(param_1);
@@ -95,7 +106,7 @@ void RGB_State::update() {
   setSelectedColor(255);
 }
 void RGB_State::printInfo() {
-  Serial.println("\tRGB ");
+  Serial.println("\tRGB");
   printMode();
 }
 
@@ -110,9 +121,14 @@ private:
 public:
   Rainbow_State(){};
   ~Rainbow_State(){};
+  virtual void onKey2Pressed();
   virtual void update();
   virtual void printInfo();
 };
+
+void Rainbow_State::onKey2Pressed() {
+    nextState();
+}
 
 void Rainbow_State::update() {
   setBrightness(param_2);
@@ -139,7 +155,7 @@ void Rainbow_State::update() {
   }
 }
 void Rainbow_State::printInfo() {
-  Serial.println("\tRainbow ");
+  Serial.println("\tRainbow");
   printMode();
 }
 
@@ -151,15 +167,21 @@ class ValueControl_State : public State {
 public:
   ValueControl_State(){};
   ~ValueControl_State(){};
-  virtual void onKeyPressed();
+  virtual void onKey1Pressed();
+  virtual void onKey2Pressed();
   virtual void onStart();
   virtual void update();
   virtual void printInfo();
 };
 
-void ValueControl_State::onKeyPressed() {
+void ValueControl_State::onKey1Pressed() {
     nextLED();
 }
+
+void ValueControl_State::onKey2Pressed() {
+    nextState();
+}
+
 void ValueControl_State::onStart() {
     setBrightness(255);
 }
@@ -167,7 +189,7 @@ void ValueControl_State::update() {
     setSelectedColor(param_1);
 }
 void ValueControl_State::printInfo() {
-  Serial.println("\tValue Control ");
+  Serial.println("\tValue Control");
   printMode();
 }
 
@@ -181,8 +203,9 @@ private:
 public:
   UART_State();
   ~UART_State(){};
-  virtual void onKeyPressed();
-  virtual void onKeyReleased();
+  virtual void onKey1Pressed();
+  virtual void onKey1Released();
+  virtual void onKey2Pressed();
   virtual void onStart();
   virtual void update();
   virtual void printInfo();
@@ -193,14 +216,18 @@ UART_State::UART_State() {
   this->UART->begin(BAUD_RATE);
 }
 
-void UART_State::onKeyPressed() {
+void UART_State::onKey1Pressed() {
   byte out[] = {'1'};
   this->UART->write(out, 1); // send button state to uart
 }
 
-void UART_State::onKeyReleased() {
+void UART_State::onKey1Released() {
   byte out[] = {'0'};
   this->UART->write(out, 1); // send button state to uart
+}
+
+void UART_State::onKey2Pressed() {
+    nextState();
 }
 
 void UART_State::onStart() {
@@ -231,7 +258,7 @@ void UART_State::update() {
 }
 
 void UART_State::printInfo() {
-  Serial.println("\tUART ");
+  Serial.println("\tUART");
   printMode();
 }
 
@@ -268,9 +295,14 @@ void StateMachine::setState(byte new_state) {
     if (new_state >= 0 && new_state < num_states) {
         current_state = new_state;
         states[current_state]->onStart();
-        Serial.println("State changed, state: " + String(current_state));
+        Serial.print("State: ");
+        Serial.println(current_state);
     } else {
-        Serial.println("Cannot set state to " + String(new_state) + " (0 <> "+String(num_states) + ")");
+        printArgumentError();
+        Serial.print(new_state);
+        Serial.print(" (0 <> ");
+        Serial.print(num_states);
+        Serial.println(")");
     }
 }
 
@@ -283,7 +315,9 @@ void StateMachine::nextState() { // Making sure to go to next enabled state, and
     if (states[potential]->isEnabled()) {
       setState(potential);
       return;
-    } else Serial.println("Potential failed (" + String(potential) + ")");
+    } else {
+        Serial.print("dsbl ");
+        Serial.println(potential);}
   }
 }
 
@@ -297,10 +331,10 @@ byte StateMachine::stateNumber() {
 
 void StateMachine::enableState(byte state) {
     if (state >= 0 && state < num_states) states[state]->enable();
-    else Serial.println("Invalid state to enable");
+    else printArgumentError();
 }
 
 void StateMachine::disableState(byte state) {
     if (state >= 0 && state < num_states) states[state]->disable();
-    else Serial.println("Invalid state to disable");
+    else printArgumentError();
 }

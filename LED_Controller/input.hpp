@@ -5,7 +5,8 @@
 
 #define POT_PIN A0
 
-#define DEBOUNCE_TIME 2
+// Debounce time in millis
+#define DEBOUNCE_TIME 6
 
 int Key1State = LOW;
 bool Key1Debounce = false;

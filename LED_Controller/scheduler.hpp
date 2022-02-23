@@ -1,15 +1,19 @@
+void printlnBool(bool);
+
 struct Task {
   long duration;
   uint8_t state;
   uint8_t param_1;
   uint8_t param_2;
   uint8_t selection;
+  bool set_params;
 };
 
 #define MAX_TASKS 30
+Task tasks[MAX_TASKS]; // Scheduled tasks
 class Scheduler {
 private:
-  Task tasks[MAX_TASKS]; // Scheduled tasks
+  
   int task_count = 0;    // Number of tasks in schedule
   int current_task = 0;
   long task_start_time = 0; // Time measured when task started
@@ -25,6 +29,7 @@ public:
   void printSchedule();
   void printStatus();
   void printIndexError(int index);
+  void printTask(int index);
   void addTask(Task task);
   void removeTask(int index);
   void moveTask(int index, int to);
@@ -44,39 +49,67 @@ public:
 void Scheduler::printSchedule() {
   Serial.println("Schedule:");
   if (task_count <= 0) Serial.println("\tNo tasks");
-  for (int i = 0; i < this->task_count; i++) Serial.println("\t" + String(i) + ": State_" + String(this->tasks[i].state) + " for " + String(this->tasks[i].duration) + "ms, p1: " + String(this->tasks[i].param_1) + ", p2: " + String(this->tasks[i].param_2) + ", s: " + String(this->tasks[i].selection));
+  for (int i = 0; i < this->task_count; i++) printTask(i);
 } 
 
 /* 
  print status of scheduler and current task
 */
 void Scheduler::printStatus() {
-  Serial.println("Scheduler:");
-  Serial.print("\tRunning: ");
-  Serial.println(this->running ? "true" : "false");
-  Serial.println("\t" + String(task_count) + " tasks");
-  if (task_count > 0) {
-    Serial.println("\tTask: " + String(current_task));
-    Serial.println("\tFor: " + String(millis() - task_start_time) + "ms");
-    Serial.println("\tState_" + String(this->tasks[current_task].state) + " for " + String(this->tasks[current_task].duration) + "ms, p1: " + String(this->tasks[current_task].param_1) + ", p2: " + String(this->tasks[current_task].param_2) + ", s: " + String(this->tasks[current_task].selection));
-  }
+    Serial.println("Scheduler:");
+    Serial.print("\tStatus: ");
+    printlnBool(this->isRunning());
+    Serial.print("\tLoop: ");
+    printlnBool(this->isLooping());
+    Serial.print("\ttc: ");
+    Serial.println(task_count);
+    if (task_count > 0) {
+        printTask(current_task);
+        Serial.print("\tFor: ");
+        Serial.print((millis() - task_start_time));
+        Serial.println("ms");
+    }
 }
 
 /*
   Print task indexing errors
 */
 void Scheduler::printIndexError(int index) {
-  if (index >= task_count) Serial.println("Index out of range: " + String(index) + ", Task-count: " + String(task_count));
-  if (index < 0) Serial.println("Illegal use of negative index: " + String(index));
+    if (index >= task_count) {
+        Serial.print("IdxErr: ");
+        Serial.print(index);
+        Serial.print("/");
+        Serial.println(task_count);
+    }
+    if (index < 0) {
+        Serial.print("IdxErr: ");
+        Serial.println(index);
+    }
+}
+
+void Scheduler::printTask(int index) {
+    Serial.print("\tTask: ");
+    Serial.println(index);
+
+    Serial.print("\tState_");
+    Serial.print(tasks[index].state);
+    Serial.print(" for ");
+    Serial.print(tasks[index].duration);
+    Serial.print("ms, p1: ");
+    Serial.print(tasks[index].param_1);
+    Serial.print(", p2: ");
+    Serial.print(tasks[index].param_2);
+    Serial.print(", s: ");
+    Serial.println(tasks[index].selection);
 }
 
 /*
   Appends task to schedule
 */
 void Scheduler::addTask(Task task) {
-  if (this->task_count + 1 < MAX_TASKS) {
-    this->tasks[this->task_count++] = task;
-  } else Serial.println("Failed to add task, task limit reached!");
+  if (task_count + 1 < MAX_TASKS) {
+    tasks[task_count++] = task;
+  } else Serial.println("TskErr");
 }
 
 /*
@@ -122,7 +155,7 @@ void Scheduler::updateTask(int index, Task task) {
 */
 void Scheduler::start() {
   if (task_count > 0) this->running = true;
-  else Serial.println("Scheduler cannot start without tasks!");
+  else Serial.println("No tasks!");
 }
 /*
   Stops the schedule from running
@@ -164,7 +197,7 @@ void setState(byte new_state);
 */
 void Scheduler::startTask() {
   changeToState(tasks[current_task].state);
-  setParameters(tasks[current_task].param_1, tasks[current_task].param_2, tasks[current_task].selection);
+  if (tasks[current_task].set_params) setParameters(tasks[current_task].param_1, tasks[current_task].param_2, tasks[current_task].selection);
   task_start_time = millis();
 }
 
@@ -177,7 +210,6 @@ void Scheduler::nextTask() {
       current_task = 0;
       if (!isLooping()) stop();
   }
-  setParameters(tasks[current_task].param_1, tasks[current_task].param_2, tasks[current_task].selection);
   startTask();
   task_start_time = millis();
 }

@@ -8,7 +8,7 @@ int getStringStart(const char *string, int str_len) {
 }
 
 /*
-  returns the position of the last character of substring in string if the substring is in string
+  returns the position after the last character of substring in string if the substring is in string
   else -1 is returned 
 */
 int startsWith(const char *string, int str_len, const char *substring) {
@@ -19,7 +19,7 @@ int startsWith(const char *string, int str_len, const char *substring) {
     if (string_start + i >= str_len) return -1;
     if (substring[i] != string[string_start + i]) return -1;
   }
-  return i;
+  return i+1;
 }
 
 /*
@@ -27,17 +27,26 @@ int startsWith(const char *string, int str_len, const char *substring) {
 */
 int endOfNumber(const char *string, int str_len) {
   int start = getStringStart(string, str_len);
-  for (int i = start; i < str_len; i++) if (string[i] < 48 || string[i] > 57) return i;
+  for (int i = start; i <= str_len; i++) if (string[i] < 48 || string[i] > 57) return i;
   return -1;
 }
 
-long getNumericArgument(char * input, int len) {
+
+/*
+    Returns number if found, terminates string after number
+    the end int pointer number is increased by the index of the first non numeric.
+    if no number is found, -1 is returned
+*/
+long getNumericArgument(char * input, int len, int *end) {
   int ns = endOfNumber(input, len);
   int start = getStringStart(input, len);
   if (ns-start <= 0) {
-    Serial.println("No value set");
+    Serial.print("NErr ");
+    Serial.println(input);
     return -1;
   } 
   input[ns] = 0;
+  *end += ns+1;
   return atol(input+start);
 }
+
