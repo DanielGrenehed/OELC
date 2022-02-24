@@ -48,12 +48,12 @@ void onMQTTMessage(char* topic, uint8_t* payload, unsigned int length) {
 }
 void reconnect() {
     while (!mqtt_client.connected()) {
-        if (mqtt_client.connect("ALeonardo")) {
-            mqtt_client.subscribe("LED/R");
-            mqtt_client.subscribe("LED/G");
-            mqtt_client.subscribe("LED/B");
+        if (mqtt_client.connect(F("ALeonardo"))) {
+            mqtt_client.subscribe(F("LED/R"));
+            mqtt_client.subscribe(F("LED/G"));
+            mqtt_client.subscribe(F("LED/B"));
         } else {
-          Serial.println("Failed to connect to server!");
+          Serial.println(F("Failed to connect to server!"));
         }
         delay(5000);
     }
@@ -63,18 +63,18 @@ void readSerial() {
   if (SerialOut.available()) {
     byte in[1];
     SerialOut.readBytes(in, 1);
-    mqtt_client.publish("arduino/uno/key1", in);
+    mqtt_client.publish(F("arduino/uno/key1"), in);
   }
 }
 
 void setup() {   
   Serial.begin(9600);
-  if (Ethernet.begin(MAC_ADDRESS) == 0) Serial.println("Ethernet failed!"); 
-  else Serial.println("Ethernet connected!");
+  if (Ethernet.begin(MAC_ADDRESS) == 0) Serial.println(F("Ethernet failed!")); 
+  else Serial.println(F("Ethernet connected!"));
   
   mqtt_client.setServer(MQTT_SERVER, PORT);
   mqtt_client.setCallback(onMQTTMessage);
-  SerialOut.begin(9600);
+  SerialOut.begin(115200);
   delay(1000);
 }
 
