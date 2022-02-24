@@ -171,7 +171,7 @@ void Rainbow_State::onKey2Pressed() {
 /*
     Fade between colors
 
-    Looking att RGB values when sliding a hue bar
+    Looking at RGB values when sliding a hue bar
     reveals that there is only two colors active 
     at once and the counter is alternating between 
     adding to a color until it's max value is reached
