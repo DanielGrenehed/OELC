@@ -14,10 +14,6 @@ byte param_1 = 0;
 byte param_2 = 255;
 long last_update_time = 0;
 
-/*
-  Change color selection
-*/
-
 
 void (*setBrightness)(byte brightness);
 void (*clearColor)();
@@ -41,7 +37,7 @@ void setSelectedColor(byte intensity) {
 
 void setSelected(byte led) {
   if (led >= 0 && led < 3) selectedLED = led;
-  else Serial.println("LEDErr!");
+  else Serial.println(F("LEDErr!"));
 }
 
 void nextLED() {
@@ -76,7 +72,7 @@ public:
   Prints the mode of the current state, enabled or disabled.
 */
 void State::printMode() {
-  Serial.print("\tMode: ");
+  Serial.print(F("\tMode: "));
   printlnBool(enabled);
 }
 
@@ -106,7 +102,7 @@ void RGB_State::update() {
   setSelectedColor(255);
 }
 void RGB_State::printInfo() {
-  Serial.println("\tRGB");
+  Serial.println(F("\tRGB"));
   printMode();
 }
 
@@ -155,7 +151,7 @@ void Rainbow_State::update() {
   }
 }
 void Rainbow_State::printInfo() {
-  Serial.println("\tRainbow");
+  Serial.println(F("\tRainbow"));
   printMode();
 }
 
@@ -189,7 +185,7 @@ void ValueControl_State::update() {
     setSelectedColor(param_1);
 }
 void ValueControl_State::printInfo() {
-  Serial.println("\tValue Control");
+  Serial.println(F("\tValue Control"));
   printMode();
 }
 
@@ -258,7 +254,7 @@ void UART_State::update() {
 }
 
 void UART_State::printInfo() {
-  Serial.println("\tUART");
+  Serial.println(F("\tUART"));
   printMode();
 }
 
@@ -295,14 +291,14 @@ void StateMachine::setState(byte new_state) {
     if (new_state >= 0 && new_state < num_states) {
         current_state = new_state;
         states[current_state]->onStart();
-        Serial.print("State: ");
+        Serial.print(F("State: "));
         Serial.println(current_state);
     } else {
         printArgumentError();
         Serial.print(new_state);
-        Serial.print(" (0 <> ");
+        Serial.print(F(" (0 <> "));
         Serial.print(num_states);
-        Serial.println(")");
+        Serial.println(F(")"));
     }
 }
 
@@ -316,7 +312,7 @@ void StateMachine::nextState() { // Making sure to go to next enabled state, and
       setState(potential);
       return;
     } else {
-        Serial.print("dsbl ");
+        Serial.print(F("State disabled "));
         Serial.println(potential);}
   }
 }

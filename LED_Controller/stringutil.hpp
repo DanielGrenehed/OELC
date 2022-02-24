@@ -41,7 +41,7 @@ long getNumericArgument(char * input, int len, int *end) {
   int ns = endOfNumber(input, len);
   int start = getStringStart(input, len);
   if (ns-start <= 0) {
-    Serial.print("NErr ");
+    Serial.print(F("NErr "));
     Serial.println(input);
     return -1;
   } 
@@ -49,4 +49,3 @@ long getNumericArgument(char * input, int len, int *end) {
   *end += ns+1;
   return atol(input+start);
 }
-

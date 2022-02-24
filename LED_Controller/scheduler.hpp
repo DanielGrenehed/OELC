@@ -47,8 +47,8 @@ public:
  print order of tasks in schedule
 */
 void Scheduler::printSchedule() {
-  Serial.println("Schedule:");
-  if (task_count <= 0) Serial.println("\tNo tasks");
+  Serial.println(F("Schedule:"));
+  if (task_count <= 0) Serial.println(F("\tNo tasks"));
   for (int i = 0; i < this->task_count; i++) printTask(i);
 } 
 
@@ -56,18 +56,18 @@ void Scheduler::printSchedule() {
  print status of scheduler and current task
 */
 void Scheduler::printStatus() {
-    Serial.println("Scheduler:");
-    Serial.print("\tStatus: ");
+    Serial.println(F("Scheduler:"));
+    Serial.print(F("\tStatus: "));
     printlnBool(this->isRunning());
-    Serial.print("\tLoop: ");
+    Serial.print(F("\tLoop: "));
     printlnBool(this->isLooping());
-    Serial.print("\ttc: ");
+    Serial.print(F("\ttc: "));
     Serial.println(task_count);
     if (task_count > 0) {
         printTask(current_task);
-        Serial.print("\tFor: ");
+        Serial.print(F("\tFor: "));
         Serial.print((millis() - task_start_time));
-        Serial.println("ms");
+        Serial.println(F("ms"));
     }
 }
 
@@ -76,30 +76,30 @@ void Scheduler::printStatus() {
 */
 void Scheduler::printIndexError(int index) {
     if (index >= task_count) {
-        Serial.print("IdxErr: ");
+        Serial.print(F("IdxErr: "));
         Serial.print(index);
-        Serial.print("/");
+        Serial.print(F("/"));
         Serial.println(task_count);
     }
     if (index < 0) {
-        Serial.print("IdxErr: ");
+        Serial.print(F("IdxErr: "));
         Serial.println(index);
     }
 }
 
 void Scheduler::printTask(int index) {
-    Serial.print("\tTask: ");
+    Serial.print(F("\tTask: "));
     Serial.println(index);
 
-    Serial.print("\tState_");
+    Serial.print(F("\tState_"));
     Serial.print(tasks[index].state);
-    Serial.print(" for ");
+    Serial.print(F(" for "));
     Serial.print(tasks[index].duration);
-    Serial.print("ms, p1: ");
+    Serial.print(F("ms, p1: "));
     Serial.print(tasks[index].param_1);
-    Serial.print(", p2: ");
+    Serial.print(F(", p2: "));
     Serial.print(tasks[index].param_2);
-    Serial.print(", s: ");
+    Serial.print(F(", s: "));
     Serial.println(tasks[index].selection);
 }
 
@@ -109,7 +109,7 @@ void Scheduler::printTask(int index) {
 void Scheduler::addTask(Task task) {
   if (task_count + 1 < MAX_TASKS) {
     tasks[task_count++] = task;
-  } else Serial.println("TskErr");
+  } else Serial.println(F("TskErr"));
 }
 
 /*
@@ -155,7 +155,7 @@ void Scheduler::updateTask(int index, Task task) {
 */
 void Scheduler::start() {
   if (task_count > 0) this->running = true;
-  else Serial.println("No tasks!");
+  else Serial.println(F("No tasks!"));
 }
 /*
   Stops the schedule from running

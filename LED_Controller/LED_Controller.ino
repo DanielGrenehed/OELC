@@ -23,8 +23,8 @@ char command_buffer[BUFFER_SIZE];
 int buffer_pos = 0;
 
 struct FunctionLink {
-  char *name;
-  char *description;
+  const char *name;
+  const char *description;
   void (*function)(char *input, int len);
 };
 
@@ -33,10 +33,10 @@ void setOverallIntensity(byte brightness) {
 }
 
 void printlnBool(bool tf) {
-  Serial.println(tf ? "On" : "Off");
+  Serial.println(tf ? F("On") : F("Off"));
 }
 void printArgumentError() {
-  Serial.print("Err");
+  Serial.print(F("Err"));
 }
 
 /*
@@ -115,7 +115,7 @@ void schedulerMoveTask(char* input, int len) {
 }
 
 void printlnInvalidTask() {
-  Serial.println("ITErr");
+  Serial.println(F("ITErr"));
 }
 
 
@@ -164,7 +164,7 @@ void schedulerUpdateTask(char* input, int len) {
 
 void schedulerHelp(char* input, int len);
 #define SCHEDULER_FUNCTIONS 11
-FunctionLink SchedulerMap[] = {
+const static FunctionLink SchedulerMap[] = {
   {"run", "Run", schedulerStart},
   {"sp", "Stop", schedulerStop}, 
   {"lp", "Loop", schedulerLoop},
@@ -178,7 +178,7 @@ FunctionLink SchedulerMap[] = {
   {"hlp", "Help msg", schedulerHelp}
 };
 void schedulerHelp(char* input, int len) {
-   Serial.println("Scheduler: ");
+   Serial.println(F("Scheduler: "));
   for (int i = 0; i < SCHEDULER_FUNCTIONS; i++) {
     Serial.print("\t");
     Serial.print(SchedulerMap[i].name);
@@ -221,7 +221,7 @@ void pot(char* input, int len) {
   if (tmp > 255) {
     printArgumentError();
     Serial.print(tmp);
-    Serial.println(" (0 <=> 255)");
+    Serial.println(F(" (0 <=> 255)"));
     return;
   }
   if (tmp < 0) return; 
@@ -246,33 +246,33 @@ void setSelection(char *input, int len) {
   if (tmp >= 0 && tmp < 3) selectedLED = tmp;
   else {
     printArgumentError();
-    Serial.println("(0 <=> 2)");
+    Serial.println(F("(0 <=> 2)"));
   } 
 }
 
 void currentState(char *input, int len) {
-  Serial.print("State ");
+  Serial.print(F("State "));
   Serial.print(state_machine->stateNumber());
-  Serial.println(":");
+  Serial.println(F(":"));
 
   state_machine->currentState()->printInfo();
-  Serial.print("\tP1: ");
+  Serial.print(F("\tP1: "));
   Serial.println(param_1);
-  Serial.print("\tP2: ");
+  Serial.print(F("\tP2: "));
   Serial.println(param_2);
-  Serial.print("\tS: ");
+  Serial.print(F("\tS: "));
   Serial.println(selectedLED);
 }
 
 void currentColor(char *input, int len) {
-  Serial.println("Color:");
-  Serial.print("\tR: ");
+  Serial.println(F("Color:"));
+  Serial.print(F("\tR: "));
   Serial.println(RED);
-  Serial.print("\tG: ");
+  Serial.print(F("\tG: "));
   Serial.println(GREEN);
-  Serial.print("\tB: ");
+  Serial.print(F("\tB: "));
   Serial.println(BLUE);
-  Serial.print("\tBs: ");
+  Serial.print(F("\tBs: "));
   Serial.println(RGBB_Data[3]);
 }
 
@@ -294,12 +294,12 @@ void disableState(char *input, int len) {
 
 void toNextLED(char *input, int len) {
   nextLED();
-  Serial.print("Current led: ");
+  Serial.print(F("Current LED: "));
   Serial.println(selectedLED);
 }
 void printHelp(char* input, int len);
 
-FunctionLink FunctionMap[] = {
+const static FunctionLink FunctionMap[] = {
     {"cs", "State info", currentState},
     {"cc", "CurrColor", currentColor},
     {"ns", "NextState", toNextState},
@@ -318,11 +318,11 @@ FunctionLink FunctionMap[] = {
 
 #define MAPPED_FUNCTIONS 14
 void printHelp(char *input, int len) {
-  Serial.println("Functions: ");
+  Serial.println(F("Functions: "));
   for (int i = 0; i < MAPPED_FUNCTIONS; i++) {
-    Serial.print("\t");
+    Serial.print(F("\t"));
     Serial.print(FunctionMap[i].name);
-    Serial.print(" - ");
+    Serial.print(F(" - "));
     Serial.println(FunctionMap[i].description);
   }
 }
@@ -335,7 +335,7 @@ void processCommands(char *input, int len) {
       return;
     }
   }
-  Serial.print("No fun_");
+  Serial.print(F("No fun_"));
   Serial.println(input);
 }
 
@@ -350,7 +350,7 @@ void handleSerial() {
     } else {
       buffer_pos++;
       if (buffer_pos >= BUFFER_SIZE) {
-        Serial.println("CmdErr");
+        Serial.println(F("CmdErr"));
         buffer_pos = 0;
       }
     }
