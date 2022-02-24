@@ -1,28 +1,52 @@
 #ifndef STATES_HPP
 #define STATES_HPP
 
-#include <SoftwareSerial.h> // For UART state, Arduino to Arduino
+/*  @author Daniel Amos Grenehed
 
-#define BAUD_RATE 115200
-#define SOFTWARE_SERIAL_RX 5
-#define SOFTWARE_SERIAL_TX 6
+    Arduino StateMachine and States
 
-void printlnBool(bool);
-void printArgumentError();
-void setState(byte);
-void nextState();
+    StateMachine handles states.
+    Not a facade, current state 
+    exposed with currentState().
 
+    State holds the logic for
+    the state, responding to 
+    input, and parameters.
+    Usually defines the 
+    behavior for the LED
+    when the state is active.
+
+*/
+
+/*
+    Global state parameters
+*/
 byte selectedLED = 0;
 byte param_1 = 0;
 byte param_2 = 255;
 long last_update_time = 0;
 
+/*
+    External used functions
+*/
+void printlnBool(bool);
+void printArgumentError();
+void setState(byte);
+void nextState();
 
+/*
+    Callback functions for color and led interactions
+*/
 void (*setBrightness)(byte brightness);
 void (*clearColor)();
 void (*setLEDColor)(byte led, byte intensity);
 byte (*getCColor)(byte led);
 
+/*
+    Set callback functions
+    
+    Call in setup()
+*/
 void setStatesFunctions(void(*sb)(byte), void(*cc)(), void(*slc)(byte, byte), byte(*glc)(byte)) {
     setBrightness = sb;
     clearColor = cc;
@@ -30,40 +54,51 @@ void setStatesFunctions(void(*sb)(byte), void(*cc)(), void(*slc)(byte, byte), by
     getCColor = glc;
 }
 
+/*
+    Return value of selected color
+*/
 byte getLEDColor() {
     return getCColor(selectedLED);
 }
 
+/*
+    Set value of selected color
+*/
 void setSelectedColor(byte intensity) {
     setLEDColor(selectedLED, intensity);
 }
 
+/*
+    Set LED selection
+*/
 void setSelected(byte led) {
   if (led >= 0 && led < 3) selectedLED = led;
   else Serial.println(F("LEDErr!"));
 }
 
+/*
+    Selects next LED
+*/
 void nextLED() {
   selectedLED++;
   if (selectedLED > 2) selectedLED = 0;
 }
 
-//
-// Abstract state base class
-//
+
+/*  Abstract state base class
+*/
 
 class State {
 private:
   bool enabled = true;
-
 public:
-  virtual void onKey1Pressed() {}; // Key1 pressed event
+  virtual void onKey1Pressed() {};  // Key1 pressed event
   virtual void onKey1Released() {}; // Key1 released event
-  virtual void onKey2Pressed() {};
-  virtual void onKey2Released() {};
-  virtual void onStart() {}; // called when state is set
-  virtual void update() {}; // called every loop iteration for the current state 
-  virtual void printInfo() = 0; // prints state info
+  virtual void onKey2Pressed() {};  // Key2 pressed event
+  virtual void onKey2Released() {}; // Key2 released event
+  virtual void onStart() {};        // called when state is set
+  virtual void update() {};         // called every loop iteration for the current state 
+  virtual void printInfo() = 0;     // prints state info
 
   bool isEnabled() { return this->enabled; };
   void enable() { this->enabled = true; };
@@ -79,9 +114,11 @@ void State::printMode() {
   printlnBool(enabled);
 }
 
-//
-// RGB state
-//
+
+/*  RGB state
+    Toggles between colors (R, G, B)
+    Brightness set with param_1
+*/
 
 class RGB_State : public State {
 public:
@@ -94,7 +131,7 @@ public:
 };
 
 void RGB_State::onKey1Pressed() {
-  nextLED();
+    nextLED();
 }
 void RGB_State::onKey2Pressed() {
     nextState();
@@ -109,9 +146,11 @@ void RGB_State::printInfo() {
   printMode();
 }
 
-//
-// Rainbow state
-//
+/*  Rainbow state
+    Fades between rainbow colors
+    Param_1 sets speed
+    Param_2 sets brightness
+*/
 
 class Rainbow_State : public State {
 private:
@@ -129,10 +168,24 @@ void Rainbow_State::onKey2Pressed() {
     nextState();
 }
 
+/*
+    Fade between colors
+
+    Looking att RGB values when sliding a hue bar
+    reveals that there is only two colors active 
+    at once and the counter is alternating between 
+    adding to a color until it's max value is reached
+    and then subtracting from the next color value until
+    the min value is reached.
+    There are 3 colors and 6 blend combinations, but using
+    a boolean(positive_count) i made a simple if-else
+    statement to handle the change of color and achieve 
+    a fading rainbow.
+*/
 void Rainbow_State::update() {
   setBrightness(param_2);
   float delta_change = ((float)param_1 / 255) * (millis() - last_update_time);
-  if (delta_change < 1.0) return; // no change will happen
+  if (delta_change < 1.0) return;   // no change will happen
   else last_update_time = millis(); // reset last change
 
   // 3 against 2 polyrhythm
@@ -153,14 +206,16 @@ void Rainbow_State::update() {
     } else setSelectedColor(color);
   }
 }
+
 void Rainbow_State::printInfo() {
   Serial.println(F("\tRainbow"));
   printMode();
 }
 
-//
-// ValueControl state
-//
+/*  ValueControl state
+    Toggles between colors 
+    Param_1 sets the current colors value
+*/
 
 class ValueControl_State : public State {
 public:
@@ -192,9 +247,18 @@ void ValueControl_State::printInfo() {
   printMode();
 }
 
-//
-// UART state
-//
+#include <SoftwareSerial.h> // For UART state, Arduino to Arduino
+
+#define BAUD_RATE 115200
+#define SOFTWARE_SERIAL_RX 5
+#define SOFTWARE_SERIAL_TX 6
+
+/*  UART state
+    Listens to software serial(UART)
+    Sets color value when a (ColorByte)(ValueByte)
+    message is sent.
+    Key1 sends events to UART.
+*/
 
 class UART_State : public State {
 private:
@@ -210,6 +274,9 @@ public:
   virtual void printInfo();
 };
 
+/*
+    Sets up the softwareSerial UART
+*/
 UART_State::UART_State() {
   this->UART = new SoftwareSerial(SOFTWARE_SERIAL_RX, SOFTWARE_SERIAL_TX);
   this->UART->begin(BAUD_RATE);
@@ -233,6 +300,9 @@ void UART_State::onStart() {
   clearColor();
 }
 
+/*
+    Responds to serial commands
+*/
 void UART_State::update() {
   if (this->UART->available()) { // read and process uart input when avaliable
     byte buffer[2];
@@ -261,9 +331,9 @@ void UART_State::printInfo() {
   printMode();
 }
 
-//
-// State machine variables
-//
+/*  State machine variables
+    Handles states
+*/
 
 class StateMachine {
 private:
@@ -288,7 +358,10 @@ StateMachine::StateMachine() {
 }
 
 /*
-  Set, start and print state
+    Set, start and print state.
+
+    Does not account for a state
+    being disabled!
 */
 void StateMachine::setState(byte new_state) {
     if (new_state >= 0 && new_state < num_states) {
@@ -308,31 +381,45 @@ void StateMachine::setState(byte new_state) {
 /*
   Sets state to next enabled state
 */
-void StateMachine::nextState() { // Making sure to go to next enabled state, and to not get stuck in a loop
-  for (int i = 0; i < num_states; i++) {
-    int potential = (current_state + i + 1) % num_states;
-    if (states[potential]->isEnabled()) {
-      setState(potential);
-      return;
-    } else {
-        Serial.print(F("State disabled "));
-        Serial.println(potential);}
-  }
+void StateMachine::nextState() { 
+    for (int i = 0; i < num_states; i++) {
+        // Making sure to go to next enabled state,
+        // and to not get stuck in a loop
+        int potential = (current_state + i + 1) % num_states;
+        if (states[potential]->isEnabled()) {
+        setState(potential);
+        return;
+        } else {
+            Serial.print(F("State disabled "));
+            Serial.println(potential);}
+    }
 }
 
+/*
+    Returns pointer to current state
+*/
 State* StateMachine::currentState() {
     return states[current_state];
 }
 
+/*
+    Returns the array position of current state
+*/
 byte StateMachine::stateNumber() {
     return current_state;
 }
 
+/*
+    Enables state to be set
+*/
 void StateMachine::enableState(byte state) {
     if (state >= 0 && state < num_states) states[state]->enable();
     else printArgumentError();
 }
 
+/*
+    Disables state from being set
+*/
 void StateMachine::disableState(byte state) {
     if (state >= 0 && state < num_states) states[state]->disable();
     else printArgumentError();

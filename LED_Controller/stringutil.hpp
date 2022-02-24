@@ -1,5 +1,15 @@
 #ifndef STRINGTUTIL_HPP
 #define STRUNGUTIL_HPP
+
+/*  @author Daniel Amos Grenehed
+
+    String handling
+    
+    Finding numbers in strings
+    Getting first non-whitespace
+    Finding a substring
+*/
+
 /*
   Returns first non-whitespace character of string
 */
@@ -50,4 +60,5 @@ long getNumericArgument(char * input, int len, int *end) {
   *end += ns+1;
   return atol(input+start);
 }
+
 #endif /* indef STRINGUTIL_HPP */
