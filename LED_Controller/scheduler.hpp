@@ -1,3 +1,6 @@
+#ifndef SCHEDULER_HPP
+#define SCHEDULER_HPP
+
 void printlnBool(bool);
 
 struct Task {
@@ -213,3 +216,5 @@ void Scheduler::nextTask() {
   startTask();
   task_start_time = millis();
 }
+
+#endif /* ifndef SCHEDULER_HPP */

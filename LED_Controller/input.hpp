@@ -1,3 +1,6 @@
+#ifndef INPUT_HPP
+#define INPUT_HPP
+
 #define KEY_1_INTERRUPT_PIN 2
 #define KEY_2_INTERRUPT_PIN 3
 #define KEY_1_PIN 8
@@ -84,3 +87,5 @@ void processInput() {
     Key1Handle();
     Key2Handle();
 }
+
+#endif /* ifndef INPUT_HPP */

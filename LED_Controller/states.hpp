@@ -1,4 +1,7 @@
-#include <SoftwareSerial.h>
+#ifndef STATES_HPP
+#define STATES_HPP
+
+#include <SoftwareSerial.h> // For UART state, Arduino to Arduino
 
 #define BAUD_RATE 115200
 #define SOFTWARE_SERIAL_RX 5
@@ -334,3 +337,5 @@ void StateMachine::disableState(byte state) {
     if (state >= 0 && state < num_states) states[state]->disable();
     else printArgumentError();
 }
+
+#endif /* ifndef STATES_HPP */

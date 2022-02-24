@@ -1,4 +1,5 @@
-
+#ifndef STRINGTUTIL_HPP
+#define STRUNGUTIL_HPP
 /*
   Returns first non-whitespace character of string
 */
@@ -41,11 +42,12 @@ long getNumericArgument(char * input, int len, int *end) {
   int ns = endOfNumber(input, len);
   int start = getStringStart(input, len);
   if (ns-start <= 0) {
-    Serial.print(F("NErr "));
-    Serial.println(input);
+    //Serial.print(F("NErr "));
+    //Serial.println(input);
     return -1;
   } 
   input[ns] = 0;
   *end += ns+1;
   return atol(input+start);
 }
+#endif /* indef STRINGUTIL_HPP */

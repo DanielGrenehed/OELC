@@ -39,6 +39,10 @@ void printArgumentError() {
   Serial.print(F("Err"));
 }
 
+void printlnByteRange() {
+  Serial.println(F(" (0 <=> 255)"));
+}
+
 /*
   Clear color values
 */
@@ -132,16 +136,13 @@ void schedulerAddTask(char* input, int len) {
   int s = getNumericArgument(input+start, len-start, &start);
 
   if (p1 < 0 || p2 < 0 || s < 0) {
-    // set task (state duration)
     scheduler->addTask({duration, state, 0, 0, 0, false});
   } else {
-    // set task (state duration p1 p2 s)
     scheduler->addTask({duration, state, (byte)p1, (byte)p2, (byte)s, true});
   }
 }
 
 void schedulerUpdateTask(char* input, int len) {
-  // get index, get duration, get state, get p1, get p2, get s
   int start = 0;
   int index = getNumericArgument(input, len, &start);
   long duration = getNumericArgument(input+start, len-start, &start);
@@ -153,16 +154,16 @@ void schedulerUpdateTask(char* input, int len) {
   int p1 = getNumericArgument(input+start, len-start, &start);
   int p2 = getNumericArgument(input+start, len-start, &start);
   int s = getNumericArgument(input+start, len-start, &start);
+
   if (p1 < 0 || p2 < 0 || s < 0) {
-    // set task (state duration)
     scheduler->updateTask(index, {duration, state, 0, 0, 0, false});
   } else {
-    // set task (state duration p1 p2 s)
     scheduler->updateTask(index, {duration, state, (byte)p1, (byte)p2, (byte)s, true});
   }
 }
 
 void schedulerHelp(char* input, int len);
+
 #define SCHEDULER_FUNCTIONS 11
 const static FunctionLink SchedulerMap[] = {
   {"run", "Run", schedulerStart},
@@ -177,67 +178,70 @@ const static FunctionLink SchedulerMap[] = {
   {"mv", "Move tsk", schedulerMoveTask},
   {"hlp", "Help msg", schedulerHelp}
 };
+
 void schedulerHelp(char* input, int len) {
    Serial.println(F("Scheduler: "));
   for (int i = 0; i < SCHEDULER_FUNCTIONS; i++) {
-    Serial.print("\t");
+    Serial.print(F("\t"));
     Serial.print(SchedulerMap[i].name);
-    Serial.print(" - ");
+    Serial.print(F(" - "));
     Serial.println(SchedulerMap[i].description);
   }
 }
 
 void schedulerCommand(char* input, int len) {
-  // Get number of arguments
    for (int i = 0; i < SCHEDULER_FUNCTIONS; i++) {
     int start = startsWith(input, len, SchedulerMap[i].name);
     if (start >= 0) {
-      //Serial.println(input+start);
       SchedulerMap[i].function(input + start, len - start);
       return;
     }
   }
-  // if no subcommand
   schedulerHelp(command_buffer, 0);
 }
 
 void button1(char* input, int len) {
   int start = 0;
   int tmp = getNumericArgument(input, len, &start);
-  if (tmp == 1) onKey1Event(true);
-  else if (tmp == 0) onKey2Event(false);
+  if (tmp == 1) onKey1Event(true);      // Key 1 Press
+  else if (tmp == 0) onKey2Event(false);// Key 1 Release
 }
 
 void button2(char* input, int len) {
   int start = 0;
   int tmp = getNumericArgument(input, len, &start);
-  if (tmp == 1) onKey2Event(true); // button 2 press
-  else if (tmp == 0) onKey2Event(false); // button 2 relesase
+  if (tmp == 1) onKey2Event(true);      // Key 2 Press
+  else if (tmp == 0) onKey2Event(false);// Key 2 Release
 }
 
 void pot(char* input, int len) {
   int start = 0;
   int tmp = getNumericArgument(input, len, &start);
-  if (tmp > 255) {
+  if (tmp > 255 || tmp < 0) {
     printArgumentError();
     Serial.print(tmp);
-    Serial.println(F(" (0 <=> 255)"));
-    return;
-  }
-  if (tmp < 0) return; 
-  onPotValueChanged((byte) tmp);
+    printlnByteRange();
+  } else onPotValueChanged((byte) tmp);
 }
 
 void setParam1(char *input, int len) {
   int start = 0;
   int tmp = getNumericArgument(input, len, &start);
-  if (tmp >= 0) param_1 = tmp;
+  if (tmp >= 0 && tmp < 256) param_1 = tmp;
+  else {
+    printArgumentError();
+    printlnByteRange();
+  }
 }
 
 void setParam2(char *input, int len) {
   int start = 0;
   int tmp = getNumericArgument(input, len, &start);
-  if (tmp >= 0) param_2 = tmp;
+  if (tmp >= 0 && tmp < 256) param_2 = tmp;
+  else {
+    printArgumentError();
+    printlnByteRange();
+  }
 }
 
 void setSelection(char *input, int len) {
@@ -341,15 +345,18 @@ void processCommands(char *input, int len) {
 
 void handleSerial() {
   if (Serial.available()) {
-    Serial.readBytes(command_buffer+buffer_pos, 1);
-    if (command_buffer[buffer_pos] == '\n') {
-      command_buffer[buffer_pos] = 0;
-      Serial.println(command_buffer);
-      processCommands(command_buffer, buffer_pos);
-      buffer_pos = 0;
+    Serial.readBytes(command_buffer+buffer_pos, 1); // read one byte
+    if (command_buffer[buffer_pos] == '\n') { // on newline 
+      command_buffer[buffer_pos] = 0; // terminate string
+      Serial.println(command_buffer); // echo input
+      processCommands(command_buffer, buffer_pos); // evaluate command
+      buffer_pos = 0; // *reset* buffer for new command 
     } else {
-      buffer_pos++;
+      // When not newline
+      // set position for next byte
+      buffer_pos++; 
       if (buffer_pos >= BUFFER_SIZE) {
+        // If command too long, print error and *reset* buffer  
         Serial.println(F("CmdErr"));
         buffer_pos = 0;
       }
@@ -376,7 +383,6 @@ void setParameters(byte p1, byte p2, byte s) {
 // Input handling
 //
 
-
 void onKey1Event(bool pressed) {
   if (pressed) state_machine->currentState()->onKey1Pressed();
   else state_machine->currentState()->onKey1Released();
@@ -397,8 +403,10 @@ void onPotValueChanged(byte new_value) {
 //
 
 void setup() {
+  // Bind functions 
   setupInput(onKey1Event, onKey2Event, onPotValueChanged);
   setStatesFunctions(setOverallIntensity, clearRGB, setDiodeIntesity, getDiodeIntensity);
+  
   // set LED pins to output
   pinMode(RED_DIODE_PIN, OUTPUT);
   pinMode(GREEN_DIODE_PIN, OUTPUT);
@@ -410,6 +418,7 @@ void setup() {
   scheduler = new Scheduler(setState, setParameters);
   state_machine = new StateMachine();
 
+  // Print info when serial monitor connected
   printHelp(command_buffer, 0);
   currentState(command_buffer, 0);
   currentColor(command_buffer, 0);
@@ -418,8 +427,12 @@ void setup() {
 void loop() {
   // handle scheduler
   scheduler->run();
+  // handle state
   state_machine->currentState()->update();
+  // Write current color to LED
   writeLEDColor();
+  // Read serial 
   handleSerial();
+  // Handle buttons and pot
   processInput();
 }
