@@ -1,5 +1,5 @@
 # OELC
- Over engeneered LED control
+ Over engeneered LED control with two arduinos and a raspberry pi
 
 ## Setup
 An Arduino UNO with two switches, one pot and an rgb led, is connected via pin 5, 6 and GND to
